@@ -19,6 +19,14 @@ int alU = 1, alD = 1, alL = 1, alR = 1, alU1 = 1, alD1 = 1, alL1 = 1, alR1 = 1;
 int curr[2] = {33, 1}, curc[2] = {75, 1};
 int points[2];
 int M, N;
+int state;                // 1 -> main menu
+                          // 2 -> game
+                          // 3 -> instructions
+                          // 4 -> leader board
+
+
+bool bPress[4];
+int curp;
 
 class Game {
     public:
@@ -26,20 +34,31 @@ class Game {
         void                    run();
 
     private:
+        void                    mazegnt();
         void                    processEvents();
+        void                    menuEvents();
+        void                    insEvents();
+        void                    ldbEvents();
+        void                    handleMenu();
+        void                    handleGame();
+        void                    handleIns();
+        void                    handleLeaderBoard();
+        vector <int>            readLeaderboard();
         void                    handlePlayerInput(sf::Keyboard::Key key, bool isPressed);
         void                    update(sf::Time elpasedTime);
         void                    valid();
         void                    render();
+        void                    renderMenu();
         void                    updateStatistics(sf::Time elapsedTime);
         void                    cordgnt();
         void                    portalAct(int id);
 
     private:
-        static const float      PlayerSpeed;
+        static float      PlayerSpeed;
         static const sf::Time   TimePerFrame;
 
         sf::RenderWindow        mWindow;
+        sf::RenderWindow        mWindow1;
         sf::Texture             mTexture;
         sf::Texture             mTexture1;
         sf::Texture             brdTexture;
@@ -47,16 +66,28 @@ class Game {
         sf::Texture             cbrdTexture;
         sf::Texture             plsTexture;
         sf::Texture             quesTexture;
+        sf::Texture             arrowT;
+        sf::Texture             inst;
+        sf::Texture             ldbt;
+        sf::Text                play;
+        sf::Text                instructions;
+        sf::Text                leaderboard;
+        sf::Text                quit;
         sf::Texture             mbt;
         sf::Texture             wall;
         sf::Texture             road;
+        sf::Texture             menut;
         sf::Texture             mnsTexture;
         sf::Texture             portalTexture;
         sf::Texture             flowerTexture;
         sf::Sprite              block;
+        sf::Sprite              arrow;
+        sf::Sprite              ldb;
         //sf::Sprite              mPlayer;
         //sf::Sprite              mPlayer1;
+        sf::Sprite              ins;
         sf::Sprite              mBack;
+        sf::Sprite              menu;
         sf::Sprite              path;
         sf::Sprite              pls;
         sf::Sprite              mns;
@@ -70,9 +101,13 @@ class Game {
         sf::Text                playerScore;
         sf::Text                playerScore1;
         sf::Text                mStatisticsText;
+        sf::Text                rankk;
+        sf::Text                score;
         sf::Time                mStatisticsUpdateTime;
         sf::Clock               clock;
         sf::SoundBuffer         ptlm;
+        sf::SoundBuffer         chng;
+        sf::SoundBuffer         ori;
 
         std::size_t             mStatisticsNumFrames;
         bool                    mIsMovingUp;
@@ -85,7 +120,7 @@ class Game {
         bool                    mIsMovingLeft1;
 };
 
-const float Game::PlayerSpeed = 25.f;
+float Game::PlayerSpeed = 25.f;
 const sf::Time Game::TimePerFrame = sf::seconds(6.5f / 60.f);
 
 int dx[] = {0, 0, 1, -1, 1, 1, -1, -1};
@@ -95,11 +130,13 @@ int ii[] = {1, 2, 3, 4, 5, 6};
 int ctdn = 30;
 
 
-sf::Sound sound;
+sf::Sound sound, sound1;
 vector < pair <int, int> > items(9);
 map < pair <int, int>, bool> taken;
 vector< sf::Sprite > v(9);
 vector< sf::Sprite > mPlayer(2);
+vector< sf::Text > ranks(10);
+vector< sf::Text > pos(10);
 
 vector< sf::SoundBuffer > musicPls(5);
 vector< sf::SoundBuffer > musicMns(4);
@@ -120,7 +157,12 @@ Game::Game()
 , brdTexture()
 , brd1Texture()
 , cbrdTexture()
+, play()
+, instructions()
+, leaderboard()
+, quit()
 , mbt()
+, chng()
 //, mPlayer()
 //, mPlayer1()
 , ptlm()
@@ -143,6 +185,13 @@ Game::Game()
 , portal()
 , flower()
 , clock()
+, menu()
+, menut()
+, arrowT()
+, arrow()
+, ori()
+, ldb()
+, ldbt()
 //, music()
 , mStatisticsNumFrames(0)
 , mIsMovingUp(false)
@@ -163,7 +212,43 @@ Game::Game()
 
     block.setTexture(road);
 
+    if(!arrowT.loadFromFile("media/textures/arrow2.png"))
+    {
+        printf("Error loading arrow");
+        exit(0);
+    }
+
+    arrow.setTexture(arrowT);
+
+    if(!ldbt.loadFromFile("media/textures/ldb.jpg"))
+    {
+        printf("Error loading arrow");
+        exit(0);
+    }
+
+    ldb.setTexture(ldbt);
+
+    if(!inst.loadFromFile("media/textures/instructions.jpg"))
+    {
+        printf("Error loading instructions");
+        exit(0);
+    }
+
+    ins.setTexture(inst);
+
     if (!ptlm.loadFromFile("media/sounds/portal.wav"))
+    {
+        puts("Error loading music !");
+        exit(0);
+    }
+
+    if (!chng.loadFromFile("media/sounds/chng.wav"))
+    {
+        puts("Error loading music !");
+        exit(0);
+    }
+
+    if (!ori.loadFromFile("media/sounds/ori.ogg"))
     {
         puts("Error loading music !");
         exit(0);
@@ -260,6 +345,13 @@ Game::Game()
     mBack.setTexture(mbt);
     mBack.setTextureRect({ 0, 120, 1920, 1080 });
 
+    if(!menut.loadFromFile("media/textures/menu.png"))
+    {
+        printf("Error loading background!");
+        exit(0);
+    }
+    menu.setTexture(menut);
+
     if(!mTexture.loadFromFile("media/textures/Eagle.png"))
     {
         printf("Error loading player0 !");
@@ -349,6 +441,29 @@ Game::Game()
     mStatisticsText.setFillColor(sf::Color::Black);
     //mStatisticsText.setStyle(sf::Text::Bold);
     mStatisticsText.setCharacterSize(25);
+
+}
+
+void Game::handleMenu() {
+    sound1.setBuffer(ori);
+    sound1.setVolume(30.f);
+    sound1.play();
+    for(int i = 0; i < 3; ++i) bPress[i] = 0;
+    bPress[0] = 1;
+    curp = 0;
+    renderMenu();
+}
+
+void Game::handleGame() {
+    sound1.stop();
+    mazegnt();
+    alU = 1, alD = 1, alL = 1, alR = 1, alU1 = 1, alD1 = 1, alL1 = 1, alR1 = 1;
+    curr[0] = 33, curr[1] = 1, curc[0] = 75, curc[1] = 1;
+    eaten[0] = eaten[1] = 0;
+    taken.clear();
+    //curr[2] = {33, 1}, curc[2] = {75, 1};
+    Game::PlayerSpeed = 25.f;
+    points[0] = points[1] = 0;
     brd.setPosition(130.f, 10.f);
     brd1.setPosition(1600.f, 15.f);
     cbrd.setPosition(870.f, 5.f);
@@ -357,11 +472,8 @@ Game::Game()
     playerScore.setPosition(175.f, 60.f);
     playerScore1.setPosition(1635.f, 85.f);
     mStatisticsText.setPosition(930.f, 60.f);
-}
-
-void Game::run() {
     cordgnt();
-    sf::Clock cock;
+    timer.restart();
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
     int timer = clock.getElapsedTime().asSeconds();
     while (mWindow.isOpen()) {
@@ -375,6 +487,144 @@ void Game::run() {
         }
         updateStatistics(elapsedTime);
         render();
+    }
+}
+
+void Game::handleIns() {
+    while (mWindow.isOpen()) {
+        insEvents();
+        mWindow.clear();
+        ins.setPosition(0.f, 0.f);
+        mWindow.draw(ins);
+        mWindow.display();
+    }
+}
+
+void Game::handleLeaderBoard() {
+    while(mWindow.isOpen()) {
+        ldbEvents();
+        mWindow.clear();
+        ldb.setPosition(0.f, 0.f);
+        mWindow.draw(ldb);
+        rankk.setString("POSITION");
+        rankk.setPosition(250.f, 50.f);
+        rankk.setFont(mFont);
+        rankk.setCharacterSize(50);
+        rankk.setColor(sf::Color::Blue);
+        rankk.setStyle(sf::Text::Bold);
+        mWindow.draw(rankk);
+        score.setString("SCORE");
+        score.setPosition(1400.f, 50.f);
+        score.setFont(mFont);
+        score.setCharacterSize(50);
+        score.setColor(sf::Color::Blue);
+        score.setStyle(sf::Text::Bold);
+        mWindow.draw(score);
+        vector <int> sc = readLeaderboard();
+        float x0 = 300.f, y0 = 150.f;
+        sf::Vector2f dp = sf::Vector2f(x0, y0);
+        for (int i = 0; i < 10; ++i) {
+            pos[i].setPosition(x0, y0);
+            pos[i].setString(to_string(i + 1));
+            pos[i].setFont(mFont);
+            pos[i].setCharacterSize(30);
+            pos[i].setColor(sf::Color::Black);
+            pos[i].setStyle(sf::Text::Bold);
+            ranks[i].setPosition(x0 + 1150.f, y0);
+            ranks[i].setString(to_string(sc[i]));
+            ranks[i].setFont(mFont);
+            ranks[i].setCharacterSize(30);
+            ranks[i].setColor(sf::Color::Black);
+            ranks[i].setStyle(sf::Text::Bold);
+            y0 += 75.f;
+            dp = sf::Vector2f(x0, y0);
+            mWindow.draw(pos[i]);
+            mWindow.draw(ranks[i]);
+        }
+        mWindow.display();
+    }
+}
+
+void Game::ldbEvents() {
+    sf::Event event;
+    while (mWindow.pollEvent(event)) {
+       if (event.type == sf::Event::Closed) {
+            mWindow.close();
+        } else if (event.type == sf::Event::KeyPressed) {
+            if (event.key.code == sf::Keyboard::Escape) handleMenu();
+        }
+    }
+}
+
+void Game::insEvents() {
+    sf::Event event;
+    while (mWindow.pollEvent(event)) {
+       if (event.type == sf::Event::Closed) {
+            mWindow.close();
+        } else if (event.type == sf::Event::KeyPressed) {
+            if (event.key.code == sf::Keyboard::Escape) handleMenu();
+        }
+    }
+}
+
+void Game::run() {
+    //re:
+    if (state == 1) {
+        handleMenu();
+    } if (state == 2) {
+        handleGame();
+    } if (state == 3) {
+        handleIns();
+    } if (state == 4) {
+        handleLeaderBoard();
+    }
+}
+
+void Game::menuEvents() {
+    sf::Event event;
+    while (mWindow.pollEvent(event)) {
+       if (event.type == sf::Event::Closed) {
+            mWindow.close();
+        } else if (event.type == sf::Event::KeyPressed) {
+            switch (event.key.code) {
+            case sf::Keyboard::Up:
+                {
+                    sound.setBuffer(chng);
+                    sound.setVolume(10.f);
+                    sound.play();
+                    if (curp == 0) {
+                        bPress[0] = 1;
+                    } else {
+                        bPress[curp] = 0;
+                        curp--;
+                        bPress[curp] = 1;
+                    }
+                    break;
+                }
+            case sf::Keyboard::Down:
+                {
+                    sound.setBuffer(chng);
+                    sound.setVolume(10.f);
+                    sound.play();
+                    if (curp == 3) {
+                        bPress[3] = 1;
+                    } else {
+                        bPress[curp] = 0;
+                        curp++;
+                        bPress[curp] = 1;
+                    }
+                    break;
+                }
+            case sf::Keyboard::Enter:
+                {
+                    if (curp == 0) handleGame();
+                    else if (curp == 1) handleIns();
+                    else if (curp == 2) handleLeaderBoard();
+                    else if (curp == 3) mWindow.close();
+                    //goto re;
+                }
+            }
+        }
     }
 }
 
@@ -494,6 +744,35 @@ void Game::update(sf::Time deltaTime) {
     mPlayer[1].move(movement1 /** deltaTime.asSeconds()*/);
 }
 
+void updateLeaderBoard(int a, int b) {
+    FILE *fp;
+    if ((fp = fopen("Leaderboard.txt", "a")) == NULL) {
+        cout << "Could not open leaderboard !";
+        exit(0);
+    }
+    fprintf(fp, "%d\n", a);
+    fprintf(fp, "%d\n", b);
+    fclose(fp);
+}
+
+vector <int> Game::readLeaderboard() {
+    vector <int> sc;
+    FILE *fp;
+    if ((fp = fopen("Leaderboard.txt", "r")) == NULL) {
+        cout << "Error reading the leaderboard";
+        exit(0);
+    }
+    int cnt = 1, a;
+    while (fscanf(fp, "%d", &a) > 0) {
+        if (cnt > 10) break;
+        sc.emplace_back(a);
+        cnt++;
+    }
+    fclose(fp);
+    sort(sc.rbegin(), sc.rend());
+    return sc;
+}
+
 sf::Vector2f getFloats(int r, int c) {
     float x = 25 * c + 0.f;
     float y = 25 * r + 165.f;
@@ -541,6 +820,45 @@ void Game::portalAct(int id) {
         }
     }
     mPlayer[id].setPosition(getFloats(curr[id], curc[id]));
+}
+
+void Game::renderMenu() {
+    while (mWindow.isOpen()) {
+        menuEvents();
+        mWindow.clear();
+        menu.setPosition(0.f, 0.f);
+        mWindow.draw(menu);
+        play.setString("PLAY");
+        play.setPosition(775.f, 400.f);
+        play.setFont(mFont);
+        play.setCharacterSize(50);
+        play.setStyle(sf::Text::Bold);
+        instructions.setString("INSTRUCTIONS");
+        instructions.setPosition(775.f, 475.f);
+        instructions.setFont(mFont);
+        instructions.setCharacterSize(50);
+        instructions.setStyle(sf::Text::Bold);
+        leaderboard.setString("LEADERBOARD");
+        leaderboard.setPosition(775.f, 550.f);
+        leaderboard.setFont(mFont);
+        leaderboard.setCharacterSize(50);
+        leaderboard.setStyle(sf::Text::Bold);
+        quit.setString("EXIT");
+        quit.setPosition(775.f, 625.f);
+        quit.setFont(mFont);
+        quit.setCharacterSize(50);
+        quit.setStyle(sf::Text::Bold);
+        if(bPress[0]) arrow.setPosition(680.f, 400.f);
+        else if(bPress[1]) arrow.setPosition(680.f, 475.f);
+        else if(bPress[2]) arrow.setPosition(680.f, 550.f);
+        else if(bPress[3]) arrow.setPosition(680.f, 625.f);
+        mWindow.draw(play);
+        mWindow.draw(instructions);
+        mWindow.draw(leaderboard);
+        mWindow.draw(quit);
+        mWindow.draw(arrow);
+        mWindow.display();
+    }
 }
 
 void Game::render() {
@@ -632,9 +950,15 @@ void Game::updateStatistics(sf::Time elapsedTime) {
             if(points[0] > points[1]) sound.setBuffer(remind[2]);
             else sound.setBuffer(remind[3]);
             sound.play();
+            Game::PlayerSpeed = 0.f;
+            updateLeaderBoard(points[0], points[1]);
+        } else if (t == 63) {
+            handleMenu();
         }
+        int sh = 60 - t;
+        sh = max(sh, 0);
         mStatisticsText.setString(
-                                  "Time\n  " + to_string(61 - t)
+                                  "Time\n  " + to_string(sh)
                                   //"Player 2 = " + std::to_string(points[1])
                                   );
 
@@ -752,7 +1076,7 @@ void createMaze(int M, int N) {
     }
 }
 
-void mazegnt()
+void Game::mazegnt()
 {
     M = 2*m+1;
     N = 2*n+1;
@@ -814,7 +1138,8 @@ void Game::cordgnt() {
 
 int main(){
     srand(time(0));
-    mazegnt();
+    //mazegnt();
+    state = 1;
     Game game;
     game.run();
 }
