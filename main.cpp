@@ -1,4 +1,4 @@
-#include<bits/stdc++.h>
+\#include<bits/stdc++.h>
 
 #include <iostream>
 #include <stack>
@@ -42,6 +42,7 @@ class Game {
         void                    handleMenu();
         void                    handleGame();
         void                    handleIns();
+        void                    startMusic();
         void                    handleLeaderBoard();
         vector <int>            readLeaderboard();
         void                    handlePlayerInput(sf::Keyboard::Key key, bool isPressed);
@@ -444,10 +445,14 @@ Game::Game()
 
 }
 
-void Game::handleMenu() {
+void Game::startMusic() {
     sound1.setBuffer(ori);
     sound1.setVolume(30.f);
+    sound1.setLoop(true);
     sound1.play();
+}
+
+void Game::handleMenu() {
     for(int i = 0; i < 3; ++i) bPress[i] = 0;
     bPress[0] = 1;
     curp = 0;
@@ -527,13 +532,13 @@ void Game::handleLeaderBoard() {
             pos[i].setPosition(x0, y0);
             pos[i].setString(to_string(i + 1));
             pos[i].setFont(mFont);
-            pos[i].setCharacterSize(30);
+            pos[i].setCharacterSize(40);
             pos[i].setColor(sf::Color::Black);
             pos[i].setStyle(sf::Text::Bold);
             ranks[i].setPosition(x0 + 1150.f, y0);
             ranks[i].setString(to_string(sc[i]));
             ranks[i].setFont(mFont);
-            ranks[i].setCharacterSize(30);
+            ranks[i].setCharacterSize(40);
             ranks[i].setColor(sf::Color::Black);
             ranks[i].setStyle(sf::Text::Bold);
             y0 += 75.f;
@@ -569,6 +574,7 @@ void Game::insEvents() {
 
 void Game::run() {
     //re:
+    startMusic();
     if (state == 1) {
         handleMenu();
     } if (state == 2) {
@@ -762,11 +768,9 @@ vector <int> Game::readLeaderboard() {
         cout << "Error reading the leaderboard";
         exit(0);
     }
-    int cnt = 1, a;
+    int a;
     while (fscanf(fp, "%d", &a) > 0) {
-        if (cnt > 10) break;
         sc.emplace_back(a);
-        cnt++;
     }
     fclose(fp);
     sort(sc.rbegin(), sc.rend());
@@ -862,6 +866,7 @@ void Game::renderMenu() {
 }
 
 void Game::render() {
+    sound1.stop();
     mWindow.clear();
     mBack.setPosition(0.f, 0.f);
     mWindow.draw(mBack);
@@ -953,6 +958,7 @@ void Game::updateStatistics(sf::Time elapsedTime) {
             Game::PlayerSpeed = 0.f;
             updateLeaderBoard(points[0], points[1]);
         } else if (t == 63) {
+            startMusic();
             handleMenu();
         }
         int sh = 60 - t;
@@ -1141,5 +1147,6 @@ int main(){
     //mazegnt();
     state = 1;
     Game game;
+    //game.startMusic();
     game.run();
 }
