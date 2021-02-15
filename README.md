@@ -1,4 +1,4 @@
-# snail-s-adventure
+# Snails-Adventure
 
 The project done by me (207), Sheraj (201), Farhan (213) and Rakin (221) for semester 1-2.
 
